@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>System Monitor</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --brand: #f47f72;
+        --ink: #222;
+        --muted: #6b7280;
+        --line: #dcdcdc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 14px/1.35 Segoe UI, Roboto, Arial, sans-serif;
+        background: #fff;
+        color: var(--ink);
+      }
+      .top {
+        background: #0f172a;
+        color: #fff;
+        padding: 10px 14px;
+        border-bottom: 2px solid var(--brand);
+      }
+      .wrap {
+        display: flex;
+        min-height: calc(100vh - 44px);
+      }
+      .rail {
+        width: 180px;
+        background: var(--brand);
+        color: #fff;
+        padding: 12px 10px;
+      }
+      .chip {
+        background: #00000020;
+        border: 1px solid #ffffff66;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-weight: 600;
+        display: inline-block;
+      }
+      .tabs {
+        margin-top: 16px;
+      }
+      .tab {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: #ffe5df;
+        border: 1px solid #000;
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin: 8px 0;
+        color: #000;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tab.active {
+        background: #fff;
+      }
+      .main {
+        flex: 1;
+        padding: 14px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .card h3 {
+        margin: 0;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        background: #fafafa;
+      }
+      .kv {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .kv td {
+        border: 1px solid var(--line);
+        padding: 8px 10px;
+      }
+      .kv td:first-child {
+        width: 260px;
+        font-weight: 600;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 10px 0;
+      }
+      .btn {
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: #cbd5e1;
+      }
+
+      /* Processes table */
+      .proc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .proc-table th {
+        background: #263645;
+        color: #fff;
+        padding: 8px 10px;
+        text-align: left;
+        border: 1px solid #1e2a36;
+      }
+      .proc-table td {
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+      }
+      .proc-table tr:hover {
+        background: #f0f8ff;
+      }
+      .proc-table tr:nth-child(even) {
+        background: #f9f9f9;
+      }
+      .hidden {
+        display: none;
+      }
+
+      /* Arrow column & tree look */
+      .tree-col {
+        width: 38px;
+        text-align: center;
+      }
+      .toggle {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        cursor: pointer;
+        background: #fff;
+        font-size: 10px;
+        user-select: none;
+      }
+      .square {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        background: #fff;
+      }
+      .pad {
+        display: inline-block;
+        height: 1px;
+      }
+      .name {
+        font-weight: 600;
+      }
+      .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">System Monitor</div>
+
+    <div class="wrap">
+      <aside class="rail">
+        <div class="chip" id="hostChip">—</div>
+        <div class="tabs">
+          <button class="tab active" id="tSystem">System Details</button>
+          <button class="tab" id="tProc">Processes Details</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- System Details -->
+        <section class="card" id="pSystem">
+          <h3>System Details</h3>
+          <div class="toolbar">
+            <button class="btn" id="refresh">Refresh</button>
+            <span class="muted" id="asOf"></span>
+          </div>
+          <table class="kv">
+            <tbody id="kv"></tbody>
+          </table>
+        </section>
+
+        <!-- Processes Details -->
+        <section class="card hidden" id="pProc">
+          <h3>Processes Details</h3>
+          <div class="toolbar">
+            <button class="btn" id="reloadProc">Refresh Processes</button>
+            <button class="btn" id="expandAll">Expand all</button>
+            <button class="btn" id="collapseAll">Collapse all</button>
+            <span class="muted" id="rowsCount"></span>
+          </div>
+          <div style="max-height: 70vh; overflow-y: auto">
+            <table class="proc-table">
+              <thead>
+                <tr>
+                  <th class="tree-col"></th>
+                  <th>Name</th>
+                  <th>Memory Usage (MB)</th>
+                  <th>CPU Usage (%)</th>
+                  <th>PPID</th>
+                  <th>PID</th>
+                </tr>
+              </thead>
+              <tbody id="procBody">
+                <tr>
+                  <td colspan="6" class="muted">
+                    Click "Refresh Processes" to load data
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const $ = (q, el = document) => el.querySelector(q);
+      const fix2 = (n) => (n == null ? "-" : Number(n).toFixed(2));
+
+      let latestId = null;
+
+      function renderSystem(snap) {
+        latestId = snap.id || null;
+        $("#hostChip").textContent = snap.hostname || "—";
+        $("#asOf").textContent = snap.timestamp
+          ? `as of ${new Date(snap.timestamp).toLocaleString()}`
+          : "";
+        const rows = [
+          ["Name", snap.hostname],
+          [
+            "Operating System",
+            [snap.os, snap.os_version].filter(Boolean).join(" "),
+          ],
+          ["Processor", snap.processor],
+          ["Number of Cores", snap.num_cpus],
+          ["Number of Threads", snap.num_threads],
+          ["RAM (GB)", fix2(snap.ram_total_gb)],
+          ["Used RAM (GB)", fix2(snap.ram_used_gb)],
+          ["Available RAM (GB)", fix2(snap.ram_available_gb)],
+          ["Storage Free (GB)", fix2(snap.disk_free_gb)],
+          ["Storage Total (GB)", fix2(snap.disk_total_gb)],
+          ["Storage Used (GB)", fix2(snap.disk_used_gb)],
+        ];
+        const tb = $("#kv");
+        tb.innerHTML = "";
+        rows.forEach(([k, v]) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${k}</td><td>${v ?? "-"}</td>`;
+          tb.appendChild(tr);
+        });
+      }
+
+      function pickLatest(arr) {
+        return (
+          arr
+            .slice()
+            .sort(
+              (a, b) =>
+                (b.id ?? 0) - (a.id ?? 0) ||
+                new Date(b.timestamp) - new Date(a.timestamp)
+            )[0] || {}
+        );
+      }
+
+      async function loadLatest() {
+        const res = await fetch("/api/agent/latest/", {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const data = await res.json();
+        const latest = pickLatest(Array.isArray(data) ? data : []);
+        if (!latest.id) throw new Error("No system snapshots found.");
+        renderSystem(latest);
+      }
+
+      let procTree = null;
+
+      function buildProcTree(list) {
+        const map = Object.create(null);
+        list.forEach(
+          (p) => (map[p.pid] = { ...p, children: [], open: false, level: 0 })
+        );
+        const roots = [];
+        list.forEach((p) => {
+          const n = map[p.pid];
+          if (p.ppid && map[p.ppid]) {
+            const parent = map[p.ppid];
+            n.level = (parent.level || 0) + 1;
+            parent.children.push(n);
+          } else {
+            roots.push(n);
+          }
+        });
+
+        const sortBranch = (node) => {
+          node.children.sort(
+            (a, b) =>
+              (b.cpu_percent || 0) - (a.cpu_percent || 0) ||
+              (b.memory_mb || 0) - (a.memory_mb || 0) ||
+              (a.name || "").localeCompare(b.name || "")
+          );
+          node.children.forEach(sortBranch);
+        };
+        roots.sort(
+          (a, b) =>
+            (b.cpu_percent || 0) - (a.cpu_percent || 0) ||
+            (b.memory_mb || 0) - (a.memory_mb || 0)
+        );
+        roots.forEach(sortBranch);
+
+        procTree = { map, roots };
+        return procTree;
+      }
+
+      function renderProcTable() {
+        const tb = $("#procBody");
+        tb.innerHTML = "";
+        if (!procTree || !procTree.roots.length) {
+          tb.innerHTML = `<tr><td colspan="6" class="muted">No process data</td></tr>`;
+          $("#rowsCount").textContent = "Processes: 0";
+          return;
+        }
+
+        let visible = 0;
+
+        function addRow(n) {
+          visible++;
+          const tr = document.createElement("tr");
+          const hasKids = n.children && n.children.length > 0;
+          const padPx = n.level * 16;
+
+          const icon = hasKids
+            ? `<span class="toggle" data-pid="${n.pid}" title="${
+                n.open ? "Collapse" : "Expand"
+              }">${n.open ? "▾" : "▸"}</span>`
+            : `<span class="square"></span>`;
+
+          tr.innerHTML = `
+      <td class="tree-col">${icon}</td>
+      <td><span class="pad" style="width:${padPx}px"></span><span class="name">${
+            n.name || "Unknown"
+          }</span></td>
+      <td class="num">${fix2(n.memory_mb)}</td>
+      <td class="num">${fix2(n.cpu_percent)}</td>
+      <td class="num">${n.ppid ?? "-"}</td>
+      <td class="num">${n.pid ?? "-"}</td>
+    `;
+          tb.appendChild(tr);
+
+          if (hasKids) {
+            tr.querySelector(".toggle").addEventListener("click", () => {
+              n.open = !n.open;
+              renderProcTable();
+            });
+          }
+          if (n.open) {
+            n.children.forEach(addRow);
+          }
+        }
+
+        procTree.roots.forEach(addRow);
+        $("#rowsCount").textContent = `Processes: ${visible}`;
+      }
+
+      async function loadProcesses() {
+        const tb = $("#procBody");
+        if (!latestId) {
+          tb.innerHTML = `<tr><td colspan="6" class="muted">No system snapshot selected.</td></tr>`;
+          $("#rowsCount").textContent = "";
+          return;
+        }
+        tb.innerHTML = `<tr><td colspan="6" class="muted">Loading processes...</td></tr>`;
+        const res = await fetch(`/api/agent/system/${latestId}/`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const detail = await res.json();
+        const procs = Array.isArray(detail.processes) ? detail.processes : [];
+        if (!procs.length) {
+          tb.innerHTML = `<tr><td colspan="6" class="muted">No process data found for this snapshot.</td></tr>`;
+          $("#rowsCount").textContent = "Processes: 0";
+          return;
+        }
+        buildProcTree(procs);
+        renderProcTable();
+      }
+
+      $("#tSystem").onclick = () => {
+        $("#tSystem").classList.add("active");
+        $("#tProc").classList.remove("active");
+        $("#pSystem").classList.remove("hidden");
+        $("#pProc").classList.add("hidden");
+      };
+      $("#tProc").onclick = async () => {
+        $("#tProc").classList.add("active");
+        $("#tSystem").classList.remove("active");
+        $("#pProc").classList.remove("hidden");
+        $("#pSystem").classList.add("hidden");
+        try {
+          await loadProcesses();
+        } catch (e) {
+          alert("Failed to load processes: " + e.message);
+        }
+      };
+      $("#refresh").onclick = () => loadLatest().catch((e) => alert(e.message));
+      $("#reloadProc").onclick = () =>
+        loadProcesses().catch((e) => alert(e.message));
+      $("#expandAll").onclick = () => {
+        if (!procTree) return;
+        Object.values(procTree.map).forEach((n) => {
+          if (n.children?.length) n.open = true;
+        });
+        renderProcTable();
+      };
+      $("#collapseAll").onclick = () => {
+        if (!procTree) return;
+        Object.values(procTree.map).forEach((n) => (n.open = false));
+        renderProcTable();
+      };
+
+      setInterval(() => {
+        if (!$("#pSystem").classList.contains("hidden")) {
+          loadLatest().catch(() => {});
+        }
+      }, 36000);
+    </script>
+  </body>
+</html>

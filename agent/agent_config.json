@@ -1,0 +1,5 @@
+{
+  "backend_url": "http://127.0.0.1:8000/api/agent/ingest/",
+  "api_key": "REPLACE_WITH_API_KEY",
+  "send_interval_seconds": 10
+}
